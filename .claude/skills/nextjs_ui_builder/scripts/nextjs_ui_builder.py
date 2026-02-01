@@ -1,0 +1,575 @@
+#!/usr/bin/env python3
+"""
+NextJS UI Builder Script
+This script provides functionality to create, manage, and deploy NextJS user interfaces.
+"""
+
+import os
+import json
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from datetime import datetime
+import argparse
+
+# Audit log function
+def log_audit(action, details):
+    """Log actions to audit trail"""
+    log_dir = Path.home() / "claude_logs"
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / "ui_builder_audit.log"
+
+    timestamp = datetime.now().isoformat()
+    log_entry = f"[{timestamp}] {action}: {details}\n"
+
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(log_entry)
+
+def create_directory_structure(base_path):
+    """Create the standard NextJS directory structure"""
+    dirs = [
+        base_path / "components" / "ui",
+        base_path / "components" / "forms",
+        base_path / "components" / "layout",
+        base_path / "pages" / "api",
+        base_path / "public" / "images",
+        base_path / "styles",
+        base_path / "lib",
+        base_path / "utils",
+        base_path / "hooks"
+    ]
+
+    for directory in dirs:
+        directory.mkdir(parents=True, exist_ok=True)
+
+    log_audit("CREATE_DIR_STRUCTURE", f"Created directory structure in {base_path}")
+
+def create_package_json(project_path, project_name):
+    """Create a package.json file with NextJS dependencies"""
+    package_json_content = {
+        "name": project_name.lower().replace(" ", "-"),
+        "version": "0.1.0",
+        "private": True,
+        "scripts": {
+            "dev": "next dev",
+            "build": "next build",
+            "start": "next start",
+            "lint": "next lint"
+        },
+        "dependencies": {
+            "next": "^14.0.0",
+            "react": "^18.2.0",
+            "react-dom": "^18.2.0",
+            "typescript": "^5.0.0",
+            "@types/node": "^20.0.0",
+            "@types/react": "^18.0.0",
+            "@types/react-dom": "^18.0.0"
+        },
+        "devDependencies": {
+            "autoprefixer": "^10.4.0",
+            "postcss": "^8.4.0",
+            "tailwindcss": "^3.3.0",
+            "eslint": "^8.0.0",
+            "eslint-config-next": "^14.0.0"
+        }
+    }
+
+    package_json_path = project_path / "package.json"
+    with open(package_json_path, "w", encoding="utf-8") as f:
+        json.dump(package_json_content, f, indent=2)
+
+    log_audit("CREATE_FILE", f"Created package.json in {project_path}")
+
+def create_next_config_js(project_path):
+    """Create next.config.js file"""
+    next_config_content = '''/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  swcMinify: true,
+  experimental: {
+    appDir: true, // Enable the new app directory (optional)
+  },
+}
+
+module.exports = nextConfig
+'''
+
+    next_config_path = project_path / "next.config.js"
+    with open(next_config_path, "w", encoding="utf-8") as f:
+        f.write(next_config_content)
+
+    log_audit("CREATE_FILE", f"Created next.config.js in {project_path}")
+
+def create_tailwind_config(project_path):
+    """Create tailwind.config.js file"""
+    tailwind_config_content = '''/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+'''
+
+    tailwind_config_path = project_path / "tailwind.config.js"
+    with open(tailwind_config_path, "w", encoding="utf-8") as f:
+        f.write(tailwind_config_content)
+
+    log_audit("CREATE_FILE", f"Created tailwind.config.js in {project_path}")
+
+def create_global_css(project_path):
+    """Create global CSS file with Tailwind directives"""
+    css_content = '''@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+'''
+
+    css_path = project_path / "styles" / "globals.css"
+    with open(css_path, "w", encoding="utf-8") as f:
+        f.write(css_content)
+
+    log_audit("CREATE_FILE", f"Created globals.css in {project_path}")
+
+def create_home_page(project_path):
+    """Create the home page component"""
+    page_content = '''import Head from 'next/head'
+import Image from 'next/image'
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export default function Home() {
+  return (
+    <>
+      <Head>
+        <title>Create Next App</title>
+        <meta name="description" content="Generated by create next app" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      <main className={`min-h-screen flex flex-col items-center justify-between p-24 ${inter.className}`}>
+        <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
+          <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
+            Get started by editing&nbsp;
+            <code className="font-mono font-bold">pages/index.js</code>
+          </p>
+          <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
+            <a
+              className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
+              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              By{' '}
+              <Image
+                src="/vercel.svg"
+                alt="Vercel Logo"
+                className="dark:invert"
+                width={100}
+                height={24}
+                priority
+              />
+            </a>
+          </div>
+        </div>
+
+        <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px]">
+          <Image
+            className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
+            src="/next.svg"
+            alt="Next.js Logo"
+            width={180}
+            height={37}
+            priority
+          />
+        </div>
+
+        <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
+          <a
+            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
+            className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <h2 className={`mb-3 text-2xl font-semibold`}>
+              Docs{' '}
+              <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
+                -&gt;
+              </span>
+            </h2>
+            <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
+              Find in-depth information about Next.js features and API.
+            </p>
+          </a>
+
+          <a
+            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
+            className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <h2 className={`mb-3 text-2xl font-semibold`}>
+              Learn{' '}
+              <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
+                -&gt;
+              </span>
+            </h2>
+            <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
+              Learn about Next.js in an interactive course with quizzes!
+            </p>
+          </a>
+
+          <a
+            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
+            className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <h2 className={`mb-3 text-2xl font-semibold`}>
+              Templates{' '}
+              <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
+                -&gt;
+              </span>
+            </h2>
+            <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
+              Discover and deploy boilerplate example Next.js projects.
+            </p>
+          </a>
+
+          <a
+            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
+            className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <h2 className={`mb-3 text-2xl font-semibold`}>
+              Deploy{' '}
+              <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
+                -&gt;
+              </span>
+            </h2>
+            <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
+              Instantly deploy your Next.js site to a shareable URL with Vercel.
+            </p>
+          </a>
+        </div>
+      </main>
+    </>
+  )
+}
+'''
+
+    page_path = project_path / "pages" / "index.js"
+    with open(page_path, "w", encoding="utf-8") as f:
+        f.write(page_content)
+
+    log_audit("CREATE_FILE", f"Created home page in {project_path}/pages/index.js")
+
+def create_component(component_name, project_path):
+    """Create a reusable UI component"""
+    component_content = f'''import React from 'react';
+
+const {component_name} = () => {{
+  return (
+    <div className="p-4 bg-white rounded shadow">
+      <h2 className="text-xl font-bold">{component_name}</h2>
+      <p>This is a reusable {component_name} component.</p>
+    </div>
+  );
+}};
+
+export default {component_name};
+'''
+
+    component_path = project_path / "components" / "ui" / f"{component_name.lower()}.js"
+    with open(component_path, "w", encoding="utf-8") as f:
+        f.write(component_content)
+
+    log_audit("CREATE_COMPONENT", f"Created {component_name} component in {component_path}")
+
+def create_form_component(form_name, fields, project_path):
+    """Create a form component with specified fields"""
+    # Generate JSX for form fields
+    field_elements = []
+    for field in fields:
+        field_type = field.get('type', 'text')
+        field_label = field.get('label', field['name'])
+        field_name = field['name']
+
+        if field_type == 'textarea':
+            field_element = f'''          <div className="mb-4">
+            <label htmlFor="{field_name}" className="block text-gray-700 text-sm font-bold mb-2">
+              {field_label}
+            </label>
+            <textarea
+              id="{field_name}"
+              name="{field_name}"
+              rows="4"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            ></textarea>
+          </div>'''
+        elif field_type == 'select':
+            options = field.get('options', [])
+            options_html = '\\n'.join([
+                f'            <option value="{opt}">{opt.capitalize()}</option>'
+                for opt in options
+            ])
+            field_element = f'''          <div className="mb-4">
+            <label htmlFor="{field_name}" className="block text-gray-700 text-sm font-bold mb-2">
+              {field_label}
+            </label>
+            <select
+              id="{field_name}"
+              name="{field_name}"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            >
+{options_html}
+            </select>
+          </div>'''
+        else:
+            field_element = f'''          <div className="mb-4">
+            <label htmlFor="{field_name}" className="block text-gray-700 text-sm font-bold mb-2">
+              {field_label}
+            </label>
+            <input
+              type="{field_type}"
+              id="{field_name}"
+              name="{field_name}"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            />
+          </div>'''
+
+        field_elements.append(field_element)
+
+    form_content = f'''import React, {{ useState }} from 'react';
+
+const {form_name} = ({{ onSubmit }}) => {{
+  const [formData, setFormData] = useState({{}});
+
+  const handleChange = (e) => {{
+    setFormData({{
+      ...formData,
+      [e.target.name]: e.target.value
+    }});
+  }};
+
+  const handleSubmit = (e) => {{
+    e.preventDefault();
+    if (onSubmit) {{
+      onSubmit(formData);
+    }}
+  }};
+
+  return (
+    <form onSubmit={{handleSubmit}} className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+{chr(10).join(field_elements)}
+      <div className="flex items-center justify-between">
+        <button
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          type="submit"
+        >
+          Submit
+        </button>
+      </div>
+    </form>
+  );
+}};
+
+export default {form_name};
+'''
+
+    form_path = project_path / "components" / "forms" / f"{form_name.lower()}.js"
+    with open(form_path, "w", encoding="utf-8") as f:
+        f.write(form_content)
+
+    log_audit("CREATE_FORM", f"Created {form_name} form with {len(fields)} fields in {form_path}")
+
+def create_layout_component(layout_name, project_path):
+    """Create a layout component"""
+    layout_content = f'''import React from 'react';
+import Head from 'next/head';
+
+const {layout_name} = ({{ children }}) => {{
+  return (
+    <>
+      <Head>
+        <title>NextJS UI Builder</title>
+        <meta name="description" content="Generated by NextJS UI Builder" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <div className="min-h-screen flex flex-col">
+        <header className="bg-gray-800 text-white p-4">
+          <nav className="container mx-auto">
+            <h1 className="text-xl font-bold">{layout_name}</h1>
+          </nav>
+        </header>
+
+        <main className="flex-grow container mx-auto p-4">
+          {{children}}
+        </main>
+
+        <footer className="bg-gray-800 text-white p-4 text-center">
+          <p>© {datetime.now().year} NextJS UI Builder. All rights reserved.</p>
+        </footer>
+      </div>
+    </>
+  );
+}};
+
+export default {layout_name};
+'''
+
+    layout_path = project_path / "components" / "layout" / f"{layout_name.lower()}.js"
+    with open(layout_path, "w", encoding="utf-8") as f:
+        f.write(layout_content)
+
+    log_audit("CREATE_LAYOUT", f"Created {layout_name} layout in {layout_path}")
+
+def create_api_route(route_name, project_path):
+    """Create an API route"""
+    api_content = f'''export default function handler(req, res) {{
+  // Handle different HTTP methods
+  switch (req.method) {{
+    case 'GET':
+      // Get data
+      res.status(200).json({{ message: '{route_name} GET request received' }});
+      break;
+    case 'POST':
+      // Create data
+      res.status(201).json({{ message: '{route_name} POST request received', data: req.body }});
+      break;
+    case 'PUT':
+      // Update data
+      res.status(200).json({{ message: '{route_name} PUT request received', data: req.body }});
+      break;
+    case 'DELETE':
+      // Delete data
+      res.status(200).json({{ message: '{route_name} DELETE request received' }});
+      break;
+    default:
+      res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
+      res.status(405).end(`Method ${{{{req.method}}}} Not Allowed`);
+  }}
+}}
+'''
+
+    api_path = project_path / "pages" / "api" / f"{route_name.lower()}.js"
+    with open(api_path, "w", encoding="utf-8") as f:
+        f.write(api_content)
+
+    log_audit("CREATE_API_ROUTE", f"Created {route_name} API route in {api_path}")
+
+def install_dependencies(project_path):
+    """Install project dependencies using npm"""
+    try:
+        os.chdir(project_path)
+        result = subprocess.run(["npm", "install"], capture_output=True, text=True)
+        if result.returncode == 0:
+            log_audit("INSTALL_DEPENDENCIES", f"Successfully installed dependencies in {project_path}")
+            return True
+        else:
+            log_audit("INSTALL_DEPENDENCIES_ERROR", f"Failed to install dependencies in {project_path}: {result.stderr}")
+            return False
+    except Exception as e:
+        log_audit("INSTALL_DEPENDENCIES_ERROR", f"Exception during dependency installation in {project_path}: {str(e)}")
+        return False
+
+def main():
+    parser = argparse.ArgumentParser(description='NextJS UI Builder')
+    parser.add_argument('--project-name', type=str, required=True, help='Name of the NextJS project')
+    parser.add_argument('--project-path', type=str, default=None, help='Path where the project will be created')
+    parser.add_argument('--add-component', type=str, help='Name of a component to create')
+    parser.add_argument('--add-form', type=str, help='Name of a form to create')
+    parser.add_argument('--form-fields', type=str, help='JSON string defining form fields')
+    parser.add_argument('--add-layout', type=str, help='Name of a layout to create')
+    parser.add_argument('--add-api-route', type=str, help='Name of an API route to create')
+    parser.add_argument('--install-deps', action='store_true', help='Install dependencies after project creation')
+
+    args = parser.parse_args()
+
+    # Set project path
+    if args.project_path:
+        project_path = Path(args.project_path) / args.project_name
+    else:
+        project_path = Path.cwd() / args.project_name
+
+    # Create project directory
+    project_path.mkdir(parents=True, exist_ok=True)
+    log_audit("CREATE_PROJECT", f"Created project directory: {project_path}")
+
+    # Create directory structure
+    create_directory_structure(project_path)
+
+    # Create initial files
+    create_package_json(project_path, args.project_name)
+    create_next_config_js(project_path)
+    create_tailwind_config(project_path)
+    create_global_css(project_path)
+    create_home_page(project_path)
+
+    # Create additional components if specified
+    if args.add_component:
+        create_component(args.add_component, project_path)
+
+    # Create form if specified
+    if args.add_form:
+        try:
+            form_fields = json.loads(args.form_fields) if args.form_fields else []
+            create_form_component(args.add_form, form_fields, project_path)
+        except json.JSONDecodeError:
+            print("Invalid JSON for form fields. Please provide a valid JSON string.")
+            sys.exit(1)
+
+    # Create layout if specified
+    if args.add_layout:
+        create_layout_component(args.add_layout, project_path)
+
+    # Create API route if specified
+    if args.add_api_route:
+        create_api_route(args.add_api_route, project_path)
+
+    # Install dependencies if requested
+    if args.install_deps:
+        print(f"Installing dependencies for {args.project_name}...")
+        if install_dependencies(project_path):
+            print("Dependencies installed successfully!")
+        else:
+            print("Failed to install dependencies. Please check the logs.")
+
+    print(f"NextJS project '{args.project_name}' created successfully at {project_path}")
+    print("\nTo start the development server:")
+    print(f"  cd {project_path}")
+    print("  npm run dev")
+
+if __name__ == "__main__":
+    main()
